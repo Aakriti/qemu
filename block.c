@@ -959,18 +959,39 @@ fail:
 /*
  * Opens the backing file for a BlockDriverState if not yet open
  *
+ * If backing_bs is not NULL or empty, find the BDS by name and reference it as
+ * the backing_hd, in this case options is ignored.
+ *
  * options is a QDict of options to pass to the block drivers, or NULL for an
  * empty set of options. The reference to the QDict is transferred to this
  * function (even on failure), so if the caller intends to reuse the dictionary,
  * it needs to use QINCREF() before calling bdrv_file_open.
  */
-int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
+int bdrv_open_backing_file(BlockDriverState *bs, const char *backing_bs,
+                           QDict *options, Error **errp)
 {
     char backing_filename[PATH_MAX];
     int back_flags, ret;
     BlockDriver *back_drv = NULL;
     Error *local_err = NULL;
 
+    if (backing_bs && *backing_bs != '\0') {
+        bs->backing_hd = bdrv_find(backing_bs);
+        if (!bs->backing_hd) {
+            error_setg(errp, "Backing device not found: %s", backing_bs);
+            return -ENOENT;
+        }
+        bdrv_ref(bs->backing_hd);
+        assert(!bs->backing_blocker);
+        error_setg(&bs->backing_blocker,
+                   "device is used as backing hd of '%s'",
+                   bs->device_name);
+        bdrv_op_block_all(bs->backing_hd, bs->backing_blocker);
+        pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+                bs->backing_hd->filename);
+        pstrcpy(bs->backing_format, sizeof(bs->backing_format),
+                bs->backing_hd->drv->format_name);
+    }
     if (bs->backing_hd != NULL) {
         QDECREF(options);
         return 0;
@@ -1166,9 +1187,11 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     /* If there is a backing file, use it */
     if ((flags & BDRV_O_NO_BACKING) == 0) {
         QDict *backing_options;
-
         qdict_extract_subqdict(options, &backing_options, "backing.");
-        ret = bdrv_open_backing_file(bs, backing_options, &local_err);
+        ret = bdrv_open_backing_file(bs, qdict_get_try_str(options, "backing"),
+                                     backing_options, &local_err);
+
+        qdict_del(options, "backing");
         if (ret < 0) {
             goto close_and_fail;
         }
@@ -1461,6 +1484,8 @@ void bdrv_close(BlockDriverState *bs)
 
     if (bs->drv) {
         if (bs->backing_hd) {
+            bdrv_op_unblock_all(bs->backing_hd, bs->backing_blocker);
+            error_free(bs->backing_blocker);
             bdrv_unref(bs->backing_hd);
             bs->backing_hd = NULL;
         }

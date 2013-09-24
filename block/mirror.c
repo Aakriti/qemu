@@ -508,7 +508,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_open_backing_file(s->target, NULL, &local_err);
+    ret = bdrv_open_backing_file(s->target, NULL, NULL, &local_err);
     if (ret < 0) {
         char backing_filename[PATH_MAX];
         bdrv_get_full_backing_filename(s->target, backing_filename,

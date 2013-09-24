@@ -316,6 +316,9 @@ struct BlockDriverState {
     BlockJob *job;
 
     QDict *options;
+
+    /* For backing reference, block the operations of named backing device */
+    Error *backing_blocker;
 };
 
 int get_tmp_filename(char *filename, int size);
