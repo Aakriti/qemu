@@ -142,6 +142,7 @@ wait:
     if (!block_job_is_cancelled(&s->common) && sector_num == end) {
         /* success */
         ret = bdrv_drop_intermediate(active, top, base);
+        base = top;
     }
 
 exit_free_buf:
