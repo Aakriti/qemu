@@ -1121,8 +1121,9 @@ out3:
 
 static int img_convert(int argc, char **argv)
 {
-    int c, ret = 0, n, n1, bs_n, bs_i, compress, cluster_size,
+    int c, ret = 0, n, n1, bs_n, bs_i, compress,
         cluster_sectors, skip_create;
+    int64_t cluster_size;
     int progress = 0, flags;
     const char *fmt, *out_fmt, *cache, *out_baseimg, *out_filename;
     BlockDriver *drv, *proto_drv;
