@@ -14,7 +14,7 @@ typedef struct BlockJob BlockJob;
 
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */
-    int cluster_size;
+    int64_t cluster_size;
     /* offset at which the VM state can be saved (0 if not possible) */
     int64_t vm_state_offset;
     bool is_dirty;
