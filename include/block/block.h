@@ -18,6 +18,7 @@ typedef struct BlockDriverInfo {
     /* offset at which the VM state can be saved (0 if not possible) */
     int64_t vm_state_offset;
     bool is_dirty;
+    bool is_compressed;
 } BlockDriverInfo;
 
 typedef struct BlockFragInfo {
