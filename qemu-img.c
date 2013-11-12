@@ -1383,8 +1383,11 @@ static int img_convert(int argc, char **argv)
         }
     }
 
+    ret = bdrv_get_info(out_bs, &bdi);
+    if (ret == 0) {
+        compress = compress || bdi.is_compressed;
+    }
     if (compress) {
-        ret = bdrv_get_info(out_bs, &bdi);
         if (ret < 0) {
             error_report("could not get block driver info");
             goto out;
