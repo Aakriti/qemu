@@ -230,6 +230,8 @@ struct BlockDriver {
     QLIST_ENTRY(BlockDriver) list;
 };
 
+typedef struct BdrvOpBlocker BdrvOpBlocker;
+
 /*
  * Note: the function bdrv_append() copies and swaps contents of
  * BlockDriverStates, so if you add new fields to this struct, please
@@ -307,6 +309,9 @@ struct BlockDriverState {
     QTAILQ_ENTRY(BlockDriverState) list;
 
     QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
+
+    /* operation blockers */
+    QLIST_HEAD(, BdrvOpBlocker) op_blockers[BLOCK_OP_MAX];
 
     /* long-running background operation */
     BlockJob *job;
