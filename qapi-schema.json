@@ -1440,6 +1440,56 @@
   'data': ['commit', 'stream', 'mirror', 'backup'] }
 
 ##
+# @BlockOperationType
+# Type of a block operation. (since 1.8)
+#
+# @backup-source: As a backup source. See the 'drive-backup' command.
+#
+# @backup-target: As a backup target. See the 'drive-backup' command.
+#
+# @change: See the 'change' command.
+#
+# @commit: See the 'block-commi' command.
+#
+# @dataplane: The virtio-blk dataplane feature.
+#
+# @drive-del: See the 'drive_del' HMP command.
+#
+# @eject: See the 'eject' command.
+#
+# @external-snapshot: See the 'blockdev-snapshot-sync' command.
+#
+# @internal-snapshot: See the 'blockdev-snapshot-internal-sync' command.
+#
+# @internal-snapshot-delete: See the 'blockdev-snapshot-delete-internal-sync' command.
+#
+# @mirror: See the 'drive-mirror' command.
+#
+# @resize: See the 'block-resize' command.
+#
+# @stream: See the 'block-stream' command.
+#
+# Since: 1.8
+##
+{ 'enum': 'BlockOp',
+  'bitmask': 'yes',
+  'data': [
+    'backup-source',
+    'backup-target',
+    'change',
+    'commit',
+    'dataplane',
+    'drive-del',
+    'eject',
+    'external-snapshot',
+    'internal-snapshot',
+    'internal-snapshot-delete',
+    'mirror',
+    'resize',
+    'stream'
+] }
+
+##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
