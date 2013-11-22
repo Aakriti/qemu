@@ -1264,8 +1264,8 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
-    if (bdrv_in_use(state->old_bs)) {
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+    if (bdrv_op_is_blocked(state->old_bs,
+                           BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT, errp)) {
         return;
     }
 
@@ -1489,8 +1489,7 @@ exit:
 
 static void eject_device(BlockDriverState *bs, int force, Error **errp)
 {
-    if (bdrv_in_use(bs)) {
-        error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
         return;
     }
     if (!bdrv_dev_has_removable_media(bs)) {
@@ -1696,7 +1695,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         qerror_report(QERR_DEVICE_NOT_FOUND, id);
         return -1;
     }
-    if (bdrv_in_use(bs)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, NULL)) {
         qerror_report(QERR_DEVICE_IN_USE, id);
         return -1;
     }
@@ -1949,8 +1948,7 @@ void qmp_drive_backup(const char *device, const char *target,
         }
     }
 
-    if (bdrv_in_use(bs)) {
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
         return;
     }
 
@@ -2084,8 +2082,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         }
     }
 
-    if (bdrv_in_use(bs)) {
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR, errp)) {
         return;
     }
 
