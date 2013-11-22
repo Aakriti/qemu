@@ -1001,6 +1001,11 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
         return NULL;
     }
 
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT_DELETE,
+                           errp)) {
+        return NULL;
+    }
+
     ret = bdrv_snapshot_find_by_id_and_name(bs, id, name, &sn, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
@@ -1095,6 +1100,10 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     bs = bdrv_find(device);
     if (!bs) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT, errp)) {
         return;
     }
 
@@ -1536,6 +1545,10 @@ void qmp_change_blockdev(const char *device, const char *filename,
         return;
     }
 
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_CHANGE, errp)) {
+        return;
+    }
+
     if (format) {
         drv = bdrv_find_whitelisted_format(format, bs->read_only);
         if (!drv) {
@@ -1681,6 +1694,10 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
     bs = bdrv_find(device);
     if (!bs) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, errp)) {
         return;
     }
 
