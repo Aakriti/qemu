@@ -1628,15 +1628,17 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     bs_dest->refcnt             = bs_src->refcnt;
 
     /* job */
-    bs_dest->in_use             = bs_src->in_use;
     bs_dest->job                = bs_src->job;
 
     /* keep the same entry in bdrv_states */
     pstrcpy(bs_dest->device_name, sizeof(bs_dest->device_name),
             bs_src->device_name);
+    memcpy(bs_dest->op_blockers, bs_src->op_blockers,
+           sizeof(bs_dest->op_blockers));
     bs_dest->list = bs_src->list;
 }
 
+static bool bdrv_op_blocker_is_empty(BlockDriverState *bs);
 /*
  * Swap bs contents for two image chains while they are live,
  * while keeping required fields on the BlockDriverState that is
@@ -1658,7 +1660,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     assert(bs_new->dirty_bitmap == NULL);
     assert(bs_new->job == NULL);
     assert(bs_new->dev == NULL);
-    assert(bs_new->in_use == 0);
+    assert(bdrv_op_blocker_is_empty(bs_new));
     assert(bs_new->io_limits_enabled == false);
     assert(!throttle_have_timer(&bs_new->throttle_state));
 
@@ -1677,7 +1679,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     /* Check a few fields that should remain attached to the device */
     assert(bs_new->dev == NULL);
     assert(bs_new->job == NULL);
-    assert(bs_new->in_use == 0);
+    assert(bdrv_op_blocker_is_empty(bs_new));
     assert(bs_new->io_limits_enabled == false);
     assert(!throttle_have_timer(&bs_new->throttle_state));
 
@@ -1714,7 +1716,7 @@ static void bdrv_delete(BlockDriverState *bs)
 {
     assert(!bs->dev);
     assert(!bs->job);
-    assert(!bs->in_use);
+    assert(bdrv_op_blocker_is_empty(bs));
     assert(!bs->refcnt);
 
     bdrv_close(bs);
@@ -1887,6 +1889,7 @@ int bdrv_commit(BlockDriverState *bs)
     int ret = 0;
     uint8_t *buf;
     char filename[PATH_MAX];
+    Error *local_err;
 
     if (!drv)
         return -ENOMEDIUM;
@@ -1895,7 +1898,9 @@ int bdrv_commit(BlockDriverState *bs)
         return -ENOTSUP;
     }
 
-    if (bdrv_in_use(bs) || bdrv_in_use(bs->backing_hd)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, &local_err) ||
+        bdrv_op_is_blocked(bs->backing_hd, BLOCK_OP_TYPE_COMMIT, &local_err)) {
+        error_free(local_err);
         return -EBUSY;
     }
 
@@ -2831,6 +2836,7 @@ int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs,
 int bdrv_truncate(BlockDriverState *bs, int64_t offset)
 {
     BlockDriver *drv = bs->drv;
+    Error *local_err;
     int ret;
     if (!drv)
         return -ENOMEDIUM;
@@ -2838,8 +2844,10 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
         return -ENOTSUP;
     if (bs->read_only)
         return -EACCES;
-    if (bdrv_in_use(bs))
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, &local_err)) {
+        error_free(local_err);
         return -EBUSY;
+    }
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
@@ -4490,15 +4498,15 @@ void bdrv_op_unblock_bitmask(BlockDriverState *bs, BlockOpBits bits,
     }
 }
 
-void bdrv_set_in_use(BlockDriverState *bs, int in_use)
+static bool bdrv_op_blocker_is_empty(BlockDriverState *bs)
 {
-    assert(bs->in_use != in_use);
-    bs->in_use = in_use;
-}
+    bool ret = true;
+    int i;
 
-int bdrv_in_use(BlockDriverState *bs)
-{
-    return bs->in_use;
+    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+        ret = ret && QLIST_EMPTY(&bs->op_blockers[i]);
+    }
+    return ret;
 }
 
 void bdrv_iostatus_enable(BlockDriverState *bs)

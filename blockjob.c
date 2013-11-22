@@ -41,13 +41,11 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
 {
     BlockJob *job;
 
-    if (bs->job || bdrv_in_use(bs)) {
+    if (bs->job) {
         error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
         return NULL;
     }
     bdrv_ref(bs);
-    bdrv_set_in_use(bs, 1);
-
     job = g_malloc0(driver->instance_size);
     job->driver        = driver;
     job->bs            = bs;
@@ -64,11 +62,14 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
         if (error_is_set(&local_err)) {
             bs->job = NULL;
             g_free(job);
-            bdrv_set_in_use(bs, 0);
             error_propagate(errp, local_err);
             return NULL;
         }
     }
+    error_setg(&job->blocker, "block device is in use by block job: %s",
+               BlockJobType_lookup[driver->job_type]);
+    bdrv_op_block_all(bs, job->blocker);
+
     return job;
 }
 
@@ -79,8 +80,9 @@ void block_job_completed(BlockJob *job, int ret)
     assert(bs->job == job);
     job->cb(job->opaque, ret);
     bs->job = NULL;
+    bdrv_op_unblock_all(bs, job->blocker);
+    error_free(job->blocker);
     g_free(job);
-    bdrv_set_in_use(bs, 0);
 }
 
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
