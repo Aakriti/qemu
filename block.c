@@ -4452,50 +4452,40 @@ bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOp op, Error **errp)
     return false;
 }
 
-void bdrv_op_block(BlockDriverState *bs, BlockOp op, Error *reason)
+void bdrv_op_block(BlockDriverState *bs, BlockOpBits bitmask,
+                   Error *reason)
 {
+    int op;
     BdrvOpBlocker *blocker;
-    assert((int) op >= 0 && op < BLOCK_OP_MAX);
+    for (op = 0; op < BLOCK_OP_MAX && bitmask; bitmask >>= 1, op++) {
+        if ((bitmask & 0x1) == 0) {
+            continue;
+        }
 
-    blocker = g_malloc0(sizeof(BdrvOpBlocker));
-    blocker->reason = reason;
-    QLIST_INSERT_HEAD(&bs->op_blockers[op], blocker, list);
+        blocker = g_malloc0(sizeof(BdrvOpBlocker));
+        blocker->reason = reason;
+        QLIST_INSERT_HEAD(&bs->op_blockers[op], blocker, list);
+    }
+    assert(op < BLOCK_OP_MAX);
 }
 
-void bdrv_op_unblock(BlockDriverState *bs, BlockOp op, Error *reason)
+void bdrv_op_unblock(BlockDriverState *bs, BlockOpBits bitmask,
+                     Error *reason)
 {
+    int op;
     BdrvOpBlocker *blocker, *next;
-    assert((int) op >= 0 && op < BLOCK_OP_MAX);
-    QLIST_FOREACH_SAFE(blocker, &bs->op_blockers[op], list, next) {
-        if (blocker->reason == reason) {
-            QLIST_REMOVE(blocker, list);
-            g_free(blocker);
-        }
-    }
-}
-
-void bdrv_op_block_bitmask(BlockDriverState *bs, BlockOpBits bits,
-                           Error *reason)
-{
-    int i;
-    for (i = 0; i < BLOCK_OP_MAX && bits; bits >>= 1, i++) {
-        if ((bits & 0x1) == 0) {
+    for (op = 0; op < BLOCK_OP_MAX && bitmask; bitmask >>= 1, op++) {
+        if ((bitmask & 0x1) == 0) {
             continue;
         }
-        bdrv_op_block(bs, i, reason);
-    }
-}
-
-void bdrv_op_unblock_bitmask(BlockDriverState *bs, BlockOpBits bits,
-                             Error *reason)
-{
-    int i;
-    for (i = 0; i < BLOCK_OP_MAX && bits; bits >>= 1, i++) {
-        if ((bits & 0x1) == 0) {
-            continue;
+        QLIST_FOREACH_SAFE(blocker, &bs->op_blockers[op], list, next) {
+            if (blocker->reason == reason) {
+                QLIST_REMOVE(blocker, list);
+                g_free(blocker);
+            }
         }
-        bdrv_op_unblock(bs, i, reason);
     }
+    assert(op < BLOCK_OP_MAX);
 }
 
 static bool bdrv_op_blocker_is_empty(BlockDriverState *bs)

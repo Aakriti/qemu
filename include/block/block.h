@@ -402,11 +402,9 @@ void bdrv_ref(BlockDriverState *bs);
 void bdrv_unref(BlockDriverState *bs);
 
 bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOp op, Error **errp);
-void bdrv_op_block(BlockDriverState *bs, BlockOp op, Error *reason);
-void bdrv_op_unblock(BlockDriverState *bs, BlockOp op, Error *reason);
-void bdrv_op_block_bitmask(BlockDriverState *bs, BlockOpBits bits,
+void bdrv_op_block(BlockDriverState *bs, BlockOpBits bits,
                            Error *reason);
-void bdrv_op_unblock_bitmask(BlockDriverState *bs, BlockOpBits bits,
+void bdrv_op_unblock(BlockDriverState *bs, BlockOpBits bits,
                              Error *reason);
 
 #ifdef CONFIG_LINUX_AIO
