@@ -410,7 +410,7 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     /* If dataplane is (re-)enabled while the guest is running there could be
      * block jobs that can conflict.
      */
-    if (bdrv_op_is_blocked(blk->conf.bs, BLOCK_OP_TYPE_DATAPLANE, &local_err)) {
+    if (bdrv_op_is_blocked(blk->conf.bs, BLOCK_OP_DATAPLANE, &local_err)) {
         error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
         return false;
@@ -428,7 +428,7 @@ bool virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *blk,
     s->fd = fd;
     s->blk = blk;
     error_setg(&s->blocker, "block device is in use by data plane");
-    bdrv_op_block_all(blk->conf.bs, s->blocker);
+    bdrv_op_block(blk->conf.bs, BLOCK_OP_BIT_ALL, s->blocker);
 
     *dataplane = s;
     return true;
@@ -441,7 +441,7 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     }
 
     virtio_blk_data_plane_stop(s);
-    bdrv_op_unblock_all(s->blk->conf.bs, s->blocker);
+    bdrv_op_unblock(s->blk->conf.bs, BLOCK_OP_BIT_ALL, s->blocker);
     g_free(s);
 }
 

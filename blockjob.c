@@ -68,7 +68,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     }
     error_setg(&job->blocker, "block device is in use by block job: %s",
                BlockJobType_lookup[driver->job_type]);
-    bdrv_op_block_all(bs, job->blocker);
+    bdrv_op_block(bs, BLOCK_OP_BIT_ALL, job->blocker);
 
     return job;
 }
@@ -80,7 +80,7 @@ void block_job_completed(BlockJob *job, int ret)
     assert(bs->job == job);
     job->cb(job->opaque, ret);
     bs->job = NULL;
-    bdrv_op_unblock_all(bs, job->blocker);
+    bdrv_op_unblock(bs, BLOCK_OP_BIT_ALL, job->blocker);
     error_free(job->blocker);
     g_free(job);
 }

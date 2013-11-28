@@ -339,7 +339,7 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
         bmds->shared_base = block_mig_state.shared_base;
         alloc_aio_bitmap(bmds);
         error_setg(&bmds->blocker, "block device is in use by migration");
-        bdrv_op_block_all(bs, bmds->blocker);
+        bdrv_op_block(bs, BLOCK_OP_BIT_ALL, bmds->blocker);
         bdrv_ref(bs);
 
         block_mig_state.total_sector_sum += sectors;
@@ -577,7 +577,7 @@ static void blk_mig_cleanup(void)
     blk_mig_lock();
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.bmds_list, entry);
-        bdrv_op_unblock_all(bmds->bs, bmds->blocker);
+        bdrv_op_unblock(bmds->bs, BLOCK_OP_BIT_ALL, bmds->blocker);
         error_free(bmds->blocker);
         bdrv_unref(bmds->bs);
         g_free(bmds->aio_bitmap);

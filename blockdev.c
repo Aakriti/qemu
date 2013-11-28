@@ -1225,7 +1225,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     }
 
     if (bdrv_op_is_blocked(state->old_bs,
-                           BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT, errp)) {
+                           BLOCK_OP_EXTERNAL_SNAPSHOT, errp)) {
         return;
     }
 
@@ -1441,7 +1441,7 @@ exit:
 
 static void eject_device(BlockDriverState *bs, int force, Error **errp)
 {
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_EJECT, errp)) {
         return;
     }
 
@@ -1644,7 +1644,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         qerror_report(QERR_DEVICE_NOT_FOUND, id);
         return -1;
     }
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, &local_err)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_DRIVE_DEL, &local_err)) {
         error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
         return -1;
@@ -1757,7 +1757,7 @@ void qmp_block_stream(const char *device, bool has_base,
         return;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_STREAM, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_STREAM, errp)) {
         return;
     }
 
@@ -1801,7 +1801,7 @@ void qmp_block_commit(const char *device,
         return;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_COMMIT, errp)) {
         return;
     }
 
@@ -1891,7 +1891,7 @@ void qmp_drive_backup(const char *device, const char *target,
         }
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_BACKUP_SOURCE, errp)) {
         return;
     }
 
@@ -2020,7 +2020,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         }
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_MIRROR, errp)) {
         return;
     }
 

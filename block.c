@@ -1898,8 +1898,8 @@ int bdrv_commit(BlockDriverState *bs)
         return -ENOTSUP;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, &local_err) ||
-        bdrv_op_is_blocked(bs->backing_hd, BLOCK_OP_TYPE_COMMIT, &local_err)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_COMMIT, &local_err) ||
+        bdrv_op_is_blocked(bs->backing_hd, BLOCK_OP_COMMIT, &local_err)) {
         error_free(local_err);
         return -EBUSY;
     }
@@ -2844,7 +2844,7 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
         return -ENOTSUP;
     if (bs->read_only)
         return -EACCES;
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, &local_err)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_RESIZE, &local_err)) {
         error_free(local_err);
         return -EBUSY;
     }
@@ -4493,7 +4493,7 @@ static bool bdrv_op_blocker_is_empty(BlockDriverState *bs)
     bool ret = true;
     int i;
 
-    for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
+    for (i = 0; i < BLOCK_OP_MAX; i++) {
         ret = ret && QLIST_EMPTY(&bs->op_blockers[i]);
     }
     return ret;
