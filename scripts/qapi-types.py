@@ -169,6 +169,38 @@ typedef enum %(name)s
 
     return lookup_decl + enum_decl
 
+def generate_enum_bitmask(name, values):
+
+    bitmask_decl = mcgen('''
+typedef enum %(name)sBits
+{
+''',
+                name=name)
+
+    i = 1
+    for value in values:
+        bitmask_decl += mcgen('''
+    %(abbrev)s_BIT_%(value)s = 0x%(i)016X,
+''',
+                     abbrev=de_camel_case(name).upper(),
+                     value=generate_enum_name(value),
+                     i=i)
+        i = i << 1
+
+    bitmask_decl += mcgen('''
+    %(abbrev)s_BIT_ALL = 0x%(i)016X,
+''',
+                     abbrev=de_camel_case(name).upper(),
+                     value=generate_enum_name(value),
+                     i=i-1)
+
+    bitmask_decl += mcgen('''
+} %(name)sBits;
+''',
+                 name=name)
+
+    return bitmask_decl
+
 def generate_anon_union_qtypes(expr):
 
     name = expr['union']
@@ -395,6 +427,8 @@ for expr in exprs:
         ret += generate_fwd_struct(expr['type'], expr['data'])
     elif expr.has_key('enum'):
         ret += generate_enum(expr['enum'], expr['data']) + "\n"
+        if expr.has_key('bitmask') and expr['bitmask'] == 'yes':
+            ret += generate_enum_bitmask(expr['enum'], expr['data']) + "\n"
         ret += generate_fwd_enum_struct(expr['enum'], expr['data'])
         fdef.write(generate_enum_lookup(expr['enum'], expr['data']))
     elif expr.has_key('union'):
