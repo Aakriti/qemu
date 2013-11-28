@@ -338,6 +338,7 @@ static void coroutine_fn backup_run(void *opaque)
     hbitmap_free(job->bitmap);
 
     bdrv_iostatus_disable(target);
+    bdrv_op_unblock(target, BLOCK_OP_BIT_ALL, job->common.blocker);
     bdrv_unref(target);
 
     block_job_completed(&job->common, ret);
@@ -363,6 +364,24 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
+    if (!bdrv_is_inserted(bs)) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, bs->device_name);
+        return;
+    }
+
+    if (!bdrv_is_inserted(target)) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, target->device_name);
+        return;
+    }
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_BACKUP_SOURCE, errp)) {
+        return;
+    }
+
+    if (bdrv_op_is_blocked(target, BLOCK_OP_BACKUP_TARGET, errp)) {
+        return;
+    }
+
     len = bdrv_getlength(bs);
     if (len < 0) {
         error_setg_errno(errp, -len, "unable to get length for '%s'",
@@ -375,6 +394,8 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
     if (!job) {
         return;
     }
+
+    bdrv_op_block(target, BLOCK_OP_BIT_ALL, job->common.blocker);
 
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;

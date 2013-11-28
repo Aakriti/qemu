@@ -1001,7 +1001,7 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
         return NULL;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT_DELETE,
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_INTERNAL_SNAPSHOT_DELETE,
                            errp)) {
         return NULL;
     }
@@ -1103,7 +1103,7 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_INTERNAL_SNAPSHOT, errp)) {
         return;
     }
 
@@ -1545,7 +1545,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
         return;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_CHANGE, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_CHANGE, errp)) {
         return;
     }
 
@@ -1697,7 +1697,7 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
         return;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_RESIZE, errp)) {
         return;
     }
 
@@ -1892,6 +1892,8 @@ void qmp_drive_backup(const char *device, const char *target,
         return;
     }
 
+    /* Although backup_run has this check too, we need to use bs->drv below, so
+     * do an early check redundantly. */
     if (!bdrv_is_inserted(bs)) {
         error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
@@ -1908,6 +1910,7 @@ void qmp_drive_backup(const char *device, const char *target,
         }
     }
 
+    /* Early check to avoid creating target */
     if (bdrv_op_is_blocked(bs, BLOCK_OP_BACKUP_SOURCE, errp)) {
         return;
     }
@@ -1963,6 +1966,50 @@ void qmp_drive_backup(const char *device, const char *target,
         bdrv_unref(target_bs);
         error_propagate(errp, local_err);
         return;
+    }
+}
+
+void qmp_blockdev_backup(const char *device, const char *target,
+                         enum MirrorSyncMode sync,
+                         bool has_speed, int64_t speed,
+                         bool has_on_source_error,
+                         BlockdevOnError on_source_error,
+                         bool has_on_target_error,
+                         BlockdevOnError on_target_error,
+                         Error **errp)
+{
+    BlockDriverState *bs;
+    BlockDriverState *target_bs;
+    Error *local_err = NULL;
+
+    if (!has_speed) {
+        speed = 0;
+    }
+    if (!has_on_source_error) {
+        on_source_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+    if (!has_on_target_error) {
+        on_target_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    target_bs = bdrv_find(target);
+    if (!target_bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, target);
+        return;
+    }
+
+    bdrv_ref(target_bs);
+    backup_start(bs, target_bs, speed, sync, on_source_error, on_target_error,
+                 block_job_cb, bs, &local_err);
+    if (local_err != NULL) {
+        bdrv_unref(target_bs);
+        error_propagate(errp, local_err);
     }
 }
 
