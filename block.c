@@ -986,7 +986,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, const char *backing_bs,
         error_setg(&bs->backing_blocker,
                    "device is used as backing hd of '%s'",
                    bs->device_name);
-        bdrv_op_block(bs, BLOCK_OP_BIT_ALL, bs->backing_blocker);
+        bdrv_op_block(bs, BLOCK_OP_BIT_ALL & ~BLOCK_OP_BACKUP_SOURCE,
+                      bs->backing_blocker);
         pstrcpy(bs->backing_file, sizeof(bs->backing_file),
                 bs->backing_hd->filename);
         pstrcpy(bs->backing_format, sizeof(bs->backing_format),
