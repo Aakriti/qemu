@@ -456,6 +456,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
  * @target: Block device to write to.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @sync_mode: What parts of the disk image should be copied to the destination.
+ * @sync_bitmap: The dirty bitmap if sync_mode is MIRROR_SYNC_MODE_DIRTY_BITMAP.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
  * @cb: Completion function for the job.
@@ -466,6 +467,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
  */
 void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, MirrorSyncMode sync_mode,
+                  BdrvDirtyBitmap *sync_bitmap,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockDriverCompletionFunc *cb, void *opaque,

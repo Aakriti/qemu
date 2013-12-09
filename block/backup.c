@@ -37,6 +37,8 @@ typedef struct CowRequest {
 typedef struct BackupBlockJob {
     BlockJob common;
     BlockDriverState *target;
+    BdrvDirtyBitmap *sync_bitmap;
+    int sync_bitmap_gran;
     MirrorSyncMode sync_mode;
     RateLimit limit;
     BlockdevOnError on_source_error;
@@ -258,7 +260,7 @@ static void coroutine_fn backup_run(void *opaque)
             job->common.busy = true;
         }
     } else {
-        /* Both FULL and TOP SYNC_MODE's require copying.. */
+        /* FULL, TOP and DIRTY_BITMAP SYNC_MODE's require copying.. */
         for (; start < end; start++) {
             bool error_is_read;
 
@@ -312,7 +314,21 @@ static void coroutine_fn backup_run(void *opaque)
                 if (alloced == 0) {
                     continue;
                 }
+            } else if (job->sync_mode == MIRROR_SYNC_MODE_DIRTY_BITMAP) {
+                int i, dirty = 0;
+                for (i = 0; i < BACKUP_SECTORS_PER_CLUSTER;
+                     i += job->sync_bitmap_gran) {
+                    if (bdrv_get_dirty(bs, job->sync_bitmap,
+                            start * BACKUP_SECTORS_PER_CLUSTER + i)) {
+                        dirty = 1;
+                        break;
+                    }
+                }
+                if (!dirty) {
+                    continue;
+                }
             }
+
             /* FULL sync mode we copy the whole drive. */
             ret = backup_do_cow(bs, start * BACKUP_SECTORS_PER_CLUSTER,
                     BACKUP_SECTORS_PER_CLUSTER, &error_is_read);
@@ -336,6 +352,9 @@ static void coroutine_fn backup_run(void *opaque)
     qemu_co_rwlock_wrlock(&job->flush_rwlock);
     qemu_co_rwlock_unlock(&job->flush_rwlock);
 
+    if (job->sync_bitmap) {
+        bdrv_release_dirty_bitmap(bs, job->sync_bitmap);
+    }
     hbitmap_free(job->bitmap);
 
     bdrv_iostatus_disable(target);
@@ -346,6 +365,7 @@ static void coroutine_fn backup_run(void *opaque)
 
 void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, MirrorSyncMode sync_mode,
+                  BdrvDirtyBitmap *sync_bitmap,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockDriverCompletionFunc *cb, void *opaque,
@@ -362,6 +382,16 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         !bdrv_iostatus_is_enabled(bs)) {
         error_set(errp, QERR_INVALID_PARAMETER, "on-source-error");
         return;
+    }
+
+    if (sync_mode == MIRROR_SYNC_MODE_DIRTY_BITMAP && !sync_bitmap) {
+        error_setg(errp, "must provide a valid bitmap name for \"dirty-bitmap\""
+                         "sync mode");
+        return;
+    }
+
+    if (sync_bitmap) {
+        bdrv_reference_dirty_bitmap(bs, sync_bitmap);
     }
 
     len = bdrv_getlength(bs);
@@ -381,6 +411,8 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
     job->on_target_error = on_target_error;
     job->target = target;
     job->sync_mode = sync_mode;
+    job->sync_bitmap = sync_bitmap;
+    job->sync_bitmap_gran = bdrv_dirty_bitmap_granularity(bs, job->sync_bitmap);
     job->common.len = len;
     job->common.co = qemu_coroutine_create(backup_run);
     qemu_coroutine_enter(job->common.co, job);
