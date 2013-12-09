@@ -1335,6 +1335,64 @@ static void drive_backup_abort(BlkTransactionState *common)
     }
 }
 
+static void dirty_bitmap_add_prepare(BlkTransactionState *common, Error **errp)
+{
+    DirtyBitmap *action;
+    Error *local_err = NULL;
+
+    action = common->action->dirty_bitmap_add;
+    qmp_dirty_bitmap_add(action->device, action->name, false, 0, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+    }
+}
+
+static void dirty_bitmap_add_abort(BlkTransactionState *common)
+{
+    DirtyBitmap *action;
+    BdrvDirtyBitmap *bm;
+    BlockDriverState *bs;
+
+    action = common->action->dirty_bitmap_add;
+    bs = bdrv_find(action->device);
+    if (bs) {
+        bm = bdrv_find_dirty_bitmap(bs, action->name);
+        if (bm) {
+            bdrv_release_dirty_bitmap(bs, bm);
+        }
+    }
+}
+
+static void dirty_bitmap_disable_prepare(BlkTransactionState *common,
+                                         Error **errp)
+{
+    DirtyBitmap *action;
+    Error *local_err = NULL;
+
+    action = common->action->dirty_bitmap_disable;
+    qmp_dirty_bitmap_disable(action->device, action->name,
+                             false, 0, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+    }
+}
+
+static void dirty_bitmap_disable_abort(BlkTransactionState *common)
+{
+    DirtyBitmap *action;
+    BdrvDirtyBitmap *bitmap;
+    BlockDriverState *bs;
+
+    action = common->action->dirty_bitmap_disable;
+    bs = bdrv_find(action->device);
+    if (bs) {
+        bitmap = bdrv_find_dirty_bitmap(bs, action->name);
+        if (bitmap) {
+            bdrv_enable_dirty_bitmap(bs, bitmap);
+        }
+    }
+}
+
 static void abort_prepare(BlkTransactionState *common, Error **errp)
 {
     error_setg(errp, "Transaction aborted using Abort action");
@@ -1366,6 +1424,16 @@ static const BdrvActionOps actions[] = {
         .instance_size = sizeof(InternalSnapshotState),
         .prepare  = internal_snapshot_prepare,
         .abort = internal_snapshot_abort,
+    },
+    [TRANSACTION_ACTION_KIND_DIRTY_BITMAP_ADD] = {
+        .instance_size = sizeof(BlkTransactionState),
+        .prepare = dirty_bitmap_add_prepare,
+        .abort = dirty_bitmap_add_abort,
+    },
+    [TRANSACTION_ACTION_KIND_DIRTY_BITMAP_DISABLE] = {
+        .instance_size = sizeof(BlkTransactionState),
+        .prepare = dirty_bitmap_disable_prepare,
+        .abort = dirty_bitmap_disable_abort,
     },
 };
 

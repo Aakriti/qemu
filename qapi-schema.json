@@ -1843,7 +1843,9 @@
        'blockdev-snapshot-sync': 'BlockdevSnapshot',
        'drive-backup': 'DriveBackup',
        'abort': 'Abort',
-       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal'
+       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal',
+       'dirty-bitmap-add': 'DirtyBitmap',
+       'dirty-bitmap-disable': 'DirtyBitmap'
    } }
 
 ##
