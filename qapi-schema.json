@@ -2109,6 +2109,22 @@
   'data': { 'device': 'str', 'name': 'str' } }
 
 ##
+# @dirty-bitmap-disable
+#
+# Disable a dirty bitmap on the device
+#
+# Setting granularity has no effect here.
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If @name is not found, GenericError with an explaining message
+#
+# Since 2.0
+##
+{'command': 'dirty-bitmap-disable',
+  'data': 'DirtyBitmap' }
+
+##
 # @migrate_cancel
 #
 # Cancel the current executing migration process.

@@ -1074,6 +1074,11 @@ EQMP
         .args_type  = "device:B,name:s",
         .mhandler.cmd_new = qmp_marshal_input_dirty_bitmap_remove,
     },
+    {
+        .name       = "dirty-bitmap-disable",
+        .args_type  = "device:B,name:s",
+        .mhandler.cmd_new = qmp_marshal_input_dirty_bitmap_disable,
+    },
 
 SQMP
 
