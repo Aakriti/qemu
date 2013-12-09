@@ -1633,6 +1633,66 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     }
 }
 
+void qmp_dirty_bitmap_add(const char *device, const char *name,
+                          bool has_granularity, int64_t granularity,
+                          Error **errp)
+{
+    BlockDriverState *bs;
+    BdrvDirtyBitmap *bitmap;
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (!name || name[0] == '\0') {
+        error_setg(errp, "Bitmap name cannot be empty");
+        return;
+    }
+    if (has_granularity) {
+        if (granularity & (granularity - 1)) {
+            error_setg(errp, "Granularity must be power of 2");
+            return;
+        }
+    } else {
+        granularity = 65536;
+    }
+
+    bitmap = bdrv_create_dirty_bitmap(bs, granularity, name, errp);
+    if (!bitmap) {
+        return;
+    }
+}
+
+void qmp_dirty_bitmap_remove(const char *device, const char *name,
+                             Error **errp)
+{
+    BlockDriverState *bs;
+    BdrvDirtyBitmap *bitmap;
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (!name || name[0] == '\0') {
+        error_setg(errp, "Bitmap name cannot be empty");
+        return;
+    }
+    bitmap = bdrv_find_dirty_bitmap(bs, name);
+    if (!bitmap) {
+        error_setg(errp, "Dirty bitmap not found: %s", name);
+        return;
+    }
+
+    /* Make it invisible to user in case the following
+     * bdrv_release_dirty_bitmap doens't free it because of refcnt */
+    bdrv_dirty_bitmap_make_anon(bs, bitmap);
+    bdrv_release_dirty_bitmap(bs, bitmap);
+}
+
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");

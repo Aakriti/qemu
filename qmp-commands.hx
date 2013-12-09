@@ -1064,6 +1064,55 @@ Example:
 EQMP
 
     {
+        .name       = "dirty-bitmap-add",
+        .args_type  = "device:B,name:s,granularity:i?",
+        .mhandler.cmd_new = qmp_marshal_input_dirty_bitmap_add,
+    },
+    {
+        .name       = "dirty-bitmap-remove",
+        .args_type  = "device:B,name:s",
+        .mhandler.cmd_new = qmp_marshal_input_dirty_bitmap_remove,
+    },
+
+SQMP
+
+dirty-bitmap-add
+----------------
+
+Create a dirty bitmap with a name on the device, and start tracking the writes.
+
+Arguments:
+
+- "device": device name to create dirty bitmap (json-string)
+- "name": name of the new dirty bitmap (json-string)
+- "granularity": granularity to track writes with. (int)
+
+Example:
+
+-> { "execute": "dirty-bitmap-add", "arguments": { "device": "drive0",
+                                                   "name": "bitmap0" } }
+<- { "return": {} }
+
+dirty-bitmap-remove
+----------------
+
+Stop write tracking and remove the dirty bitmap that was created with
+dirty-bitmap-add.
+
+Arguments:
+
+- "device": device name to remove dirty bitmap (json-string)
+- "name": name of the dirty bitmap to remove (json-string)
+
+Example:
+
+-> { "execute": "dirty-bitmap-remove", "arguments": { "device": "drive0",
+                                                      "name": "bitmap0" } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "blockdev-snapshot-sync",
         .args_type  = "device:B,snapshot-file:s,format:s?,mode:s?",
         .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,
