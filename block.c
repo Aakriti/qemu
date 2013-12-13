@@ -1075,19 +1075,33 @@ fail:
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
 {
     if (bs->backing_hd) {
+        assert(error_is_set(&bs->backing_blocker));
+        bdrv_op_unblock_all(bs->backing_hd, bs->backing_blocker);
         bdrv_unref(bs->backing_hd);
+    } else if (backing_hd) {
+        error_setg(&bs->backing_blocker,
+                   "device is used as backing hd of '%s'",
+                   bs->device_name);
     }
 
     bs->backing_hd = backing_hd;
     if (!backing_hd) {
         bs->backing_file[0] = '\0';
         bs->backing_format[0] = '\0';
+        if (error_is_set(&bs->backing_blocker)) {
+            error_free(bs->backing_blocker);
+        }
         goto out;
     }
     pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_hd->filename);
     pstrcpy(bs->backing_format, sizeof(bs->backing_file),
             backing_hd->drv ? backing_hd->drv->format_name : "");
     bdrv_ref(bs->backing_hd);
+
+    bdrv_op_block_all(bs->backing_hd, bs->backing_blocker);
+    /* Otherwise we won't be able to commit due to check in bdrv_commit */
+    bdrv_op_unblock(bs->backing_hd, BLOCK_OP_TYPE_COMMIT,
+                    bs->backing_blocker);
 out:
     bdrv_refresh_limits(bs);
 }
@@ -1675,8 +1689,7 @@ void bdrv_close(BlockDriverState *bs)
 
     if (bs->drv) {
         if (bs->backing_hd) {
-            bdrv_unref(bs->backing_hd);
-            bs->backing_hd = NULL;
+            bdrv_set_backing_hd(bs, NULL);
         }
         bs->drv->bdrv_close(bs);
         g_free(bs->opaque);
@@ -1878,7 +1891,6 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     assert(QLIST_EMPTY(&bs_new->dirty_bitmaps));
     assert(bs_new->job == NULL);
     assert(bs_new->dev == NULL);
-    assert(bdrv_op_blocker_is_empty(bs_new));
     assert(bs_new->io_limits_enabled == false);
     assert(!throttle_have_timer(&bs_new->throttle_state));
 
@@ -1897,7 +1909,6 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     /* Check a few fields that should remain attached to the device */
     assert(bs_new->dev == NULL);
     assert(bs_new->job == NULL);
-    assert(bdrv_op_blocker_is_empty(bs_new));
     assert(bs_new->io_limits_enabled == false);
     assert(!throttle_have_timer(&bs_new->throttle_state));
 
