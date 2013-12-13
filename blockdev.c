@@ -1817,6 +1817,10 @@ void qmp_block_stream(const char *device, bool has_base,
         return;
     }
 
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_STREAM, errp)) {
+        return;
+    }
+
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
@@ -1854,6 +1858,10 @@ void qmp_block_commit(const char *device,
     bs = bdrv_find(device);
     if (!bs) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT, errp)) {
         return;
     }
 
