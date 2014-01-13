@@ -4545,6 +4545,11 @@ BdrvDirtyBitmap *bdrv_find_dirty_bitmap(BlockDriverState *bs,
     return NULL;
 }
 
+void bdrv_dirty_bitmap_make_anon(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
+{
+    bitmap->name[0] = '\0';
+}
+
 BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
                                           int granularity,
                                           const char *name,
