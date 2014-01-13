@@ -26,6 +26,17 @@ case $line in
     # save for the next definitions
     prefix=${line#*=}
     ;;
+ moddir=*)
+    eval "moddir=\"${line#*=}\""
+    echo "#define CONFIG_MODDIR \"$moddir\""
+    ;;
+ CONFIG_STAMP=*)
+    echo "#define DSO_STAMP_FUN qemu_stamp_${line#*=}"
+    echo "#define DSO_STAMP_FUN_STR \"qemu_stamp_${line#*=}\""
+    ;;
+ CONFIG_MODULES=*)
+    echo "#define CONFIG_MODULES \"${line#*=}\""
+    ;;
  CONFIG_AUDIO_DRIVERS=*)
     drivers=${line#*=}
     echo "#define CONFIG_AUDIO_DRIVERS \\"
@@ -103,6 +114,9 @@ case $line in
     name=${line%=*}
     value=${line#*=}
     echo "#define $name $value"
+    ;;
+ DSOSUF=*)
+    echo "#define HOST_DSOSUF \"${line#*=}\""
     ;;
 esac
 

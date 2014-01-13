@@ -69,13 +69,14 @@ endif
 %.o: %.dtrace
 	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   $(TARGET_DIR)$@")
 
-%$(DSOSUF): QEMU_CFLAGS += -fPIC
+%$(DSOSUF): QEMU_CFLAGS += -fPIC -DBUILD_DSO
 %$(DSOSUF): LDFLAGS += $(LDFLAGS_SHARED)
-%$(DSOSUF): %.mo libqemustub.a
+%$(DSOSUF): %.mo libqemustub.a module-common.o
 	$(call LINK,$^)
+	@# Copy to build root so modules can be loaded when program started without install
+	$(if $(findstring /,$@),$(call quiet-command,cp $@ $(subst /,-,$@), "  CP    $(subst /,-,$@)"))
 
 .PHONY: modules
-modules:
 
 %.mo:
 	$(call quiet-command,touch $@,"  GEN   $(TARGET_DIR)$@")
@@ -206,7 +207,8 @@ $(foreach o,$(filter %.o,$($1)),
 	$(eval $(patsubst %.o,%.mo,$o)-objs := $o))
 $(foreach o,$(filter %.mo,$($1)),$(eval \
     $o: $($o-objs)))
-$(eval modules-m += $(patsubst %.o,%.mo,$($1)))
+$(eval t := $(patsubst %.o,%.mo,$($1)))
+$(foreach o,$t,$(eval modules-m += $o)))
 endef
 
 define unnest-vars
