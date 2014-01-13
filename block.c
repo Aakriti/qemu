@@ -51,6 +51,7 @@
 
 struct BdrvDirtyBitmap {
     HBitmap *bitmap;
+    int refcnt;
     QLIST_ENTRY(BdrvDirtyBitmap) list;
 };
 
@@ -4543,6 +4544,7 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs, int granularity)
     bitmap_size = (bdrv_getlength(bs) >> BDRV_SECTOR_BITS);
     bitmap = g_malloc0(sizeof(BdrvDirtyBitmap));
     bitmap->bitmap = hbitmap_alloc(bitmap_size, ffs(granularity) - 1);
+    bitmap->refcnt = 1;
     QLIST_INSERT_HEAD(&bs->dirty_bitmaps, bitmap, list);
     return bitmap;
 }
@@ -4552,12 +4554,21 @@ void bdrv_release_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
     BdrvDirtyBitmap *bm, *next;
     QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
         if (bm == bitmap) {
-            QLIST_REMOVE(bitmap, list);
-            hbitmap_free(bitmap->bitmap);
-            g_free(bitmap);
+            assert(bitmap->refcnt > 0);
+            bitmap->refcnt--;
+            if (bitmap->refcnt == 0) {
+                QLIST_REMOVE(bitmap, list);
+                hbitmap_free(bitmap->bitmap);
+                g_free(bitmap);
+            }
             return;
         }
     }
+}
+
+void bdrv_reference_dirty_bitmap(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
+{
+    bitmap->refcnt++;
 }
 
 BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
