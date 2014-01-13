@@ -129,7 +129,9 @@ dummy := $(call unnest-vars,, \
                 util-obj-y \
                 qga-obj-y \
                 block-obj-y \
-                common-obj-y)
+                block-obj-m \
+                common-obj-y \
+                common-obj-m)
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/tests/Makefile
@@ -138,7 +140,7 @@ ifeq ($(CONFIG_SMARTCARD_NSS),y)
 include $(SRC_PATH)/libcacard/Makefile
 endif
 
-all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all
+all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
@@ -256,6 +258,9 @@ clean:
 	rm -f qemu-options.def
 	find . -name '*.[oda]' -type f -exec rm -f {} +
 	find . -name '*.l[oa]' -type f -exec rm -f {} +
+	find . -name '*.so' -type f -exec rm -f {} +
+	find . -name '*.mo' -type f -exec rm -f {} +
+	find . -name '*.dll' -type f -exec rm -f {} +
 	rm -f $(filter-out %.tlb,$(TOOLS)) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -f fsdev/*.pod
 	rm -rf .libs */.libs
