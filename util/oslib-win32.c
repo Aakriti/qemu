@@ -189,3 +189,27 @@ qemu_get_local_state_pathname(const char *relative_pathname)
     return g_strdup_printf("%s" G_DIR_SEPARATOR_S "%s", base_path,
                            relative_pathname);
 }
+
+char *qemu_exec_dir(const char *argv0)
+{
+
+    char *p;
+    char buf[MAX_PATH];
+    DWORD len;
+
+    len = GetModuleFileName(NULL, buf, sizeof(buf) - 1);
+    if (len == 0) {
+        return NULL;
+    }
+
+    buf[len] = 0;
+    p = buf + len - 1;
+    while (p != buf && *p != '\\') {
+        p--;
+    }
+    *p = 0;
+    if (access(buf, R_OK) == 0) {
+        return g_strdup(buf);
+    }
+    return NULL;
+}
