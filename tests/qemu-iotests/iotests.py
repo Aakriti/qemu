@@ -153,13 +153,16 @@ class VM(object):
                              stderr=sys.stderr)
         return p.wait()
 
+    def qtest_cmd(self, cmd):
+        self._popen.stdin.write(cmd + "\n")
+
     def launch(self):
         '''Launch the VM and establish a QMP connection'''
-        devnull = open('/dev/null', 'rb')
         qemulog = open(self._qemu_log_path, 'wb')
         try:
             self._qmp = qmp.QEMUMonitorProtocol(self._monitor_path, server=True)
-            self._popen = subprocess.Popen(self._args, stdin=devnull, stdout=qemulog,
+            self._popen = subprocess.Popen(self._args, stdin=subprocess.PIPE,
+                                           stdout=qemulog,
                                            stderr=subprocess.STDOUT)
             self._qmp.accept()
         except:
